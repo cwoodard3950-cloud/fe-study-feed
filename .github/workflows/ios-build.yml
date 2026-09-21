@@ -1,0 +1,100 @@
+name: iOS Build
+
+# Compiles the app on a real Xcode toolchain (GitHub's macOS runners) and
+# then actually boots it in the iOS Simulator, so you get a real rendered
+# screenshot back -- without owning a Mac or an iPhone. Code signing is
+# off throughout; the Simulator needs none.
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-screenshot:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: List available schemes (sanity check)
+        run: xcodebuild -project FEStudyFeed.xcodeproj -list
+
+      - name: Pick an available iPhone simulator
+        id: pick_sim
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)["devices"]
+          for runtime, devices in data.items():
+              if "iOS" not in runtime:
+                  continue
+              for d in devices:
+                  if d.get("isAvailable") and "iPhone" in d.get("name", ""):
+                      print(d["udid"])
+                      sys.exit(0)
+          sys.exit(1)
+          ')
+          echo "Selected simulator UDID: $DEVICE_ID"
+          echo "device_id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Boot simulator
+        run: |
+          xcrun simctl boot "${{ steps.pick_sim.outputs.device_id }}" || true
+          xcrun simctl bootstatus "${{ steps.pick_sim.outputs.device_id }}" -b
+
+      - name: Build for the selected simulator
+        run: |
+          xcodebuild build \
+            -project FEStudyFeed.xcodeproj \
+            -scheme FEStudyFeed \
+            -destination "id=${{ steps.pick_sim.outputs.device_id }}" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Start console log capture
+        run: |
+          xcrun simctl spawn "${{ steps.pick_sim.outputs.device_id }}" log stream \
+            --predicate 'process == "FEStudyFeed"' --style compact \
+            > simulator-console.log 2>&1 &
+          echo $! > log_pid.txt
+
+      - name: Install and launch the app
+        run: |
+          APP_PATH=$(find build/Build/Products -maxdepth 2 -name "FEStudyFeed.app" | head -1)
+          echo "App path: $APP_PATH"
+          xcrun simctl install "${{ steps.pick_sim.outputs.device_id }}" "$APP_PATH"
+          xcrun simctl launch "${{ steps.pick_sim.outputs.device_id }}" com.carsonwoodard.festudyfeed
+
+      - name: Wait for the UI to render
+        run: sleep 5
+
+      - name: Screenshot the running app
+        run: |
+          xcrun simctl io "${{ steps.pick_sim.outputs.device_id }}" screenshot fe-study-feed-screenshot.png
+
+      - name: Confirm the app is still running (didn't crash on launch)
+        run: |
+          if xcrun simctl spawn "${{ steps.pick_sim.outputs.device_id }}" launchctl list | grep -q com.carsonwoodard.festudyfeed; then
+            echo "App is running."
+          else
+            echo "::error::App is not running -- it likely crashed on launch. Check simulator-console.log."
+            exit 1
+          fi
+
+      - name: Stop console log capture
+        if: always()
+        run: kill "$(cat log_pid.txt)" 2>/dev/null || true
+
+      - name: Upload screenshot + console log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fe-study-feed-simulator-run
+          path: |
+            fe-study-feed-screenshot.png
+            simulator-console.log
+          if-no-files-found: warn
