@@ -12,6 +12,13 @@ import SwiftUI
 
 struct CardPageView: View {
     let card: StudyCard
+
+    /// How much space to leave above this card's own content so it clears
+    /// the floating top bar -- measured live by ContentView (the bar's real
+    /// on-screen position) rather than guessed as a fixed number, which
+    /// varies across devices with different safe-area insets.
+    var topClearance: CGFloat = 90
+
     @EnvironmentObject private var tracker: StudyTracker
     @EnvironmentObject private var engine: FeedEngine
 
@@ -50,7 +57,7 @@ struct CardPageView: View {
                 swipeHint
             }
             .padding(.horizontal, 22)
-            .padding(.top, 20)
+            .padding(.top, topClearance + 12)
             .padding(.bottom, 24)
         }
     }
@@ -270,7 +277,7 @@ struct CardPageView: View {
 
 #Preview {
     let tracker = StudyTracker()
-    return CardPageView(card: CardBank.all.first { $0.kind == .quiz }!)
+    return CardPageView(card: CardBank.all.first { $0.kind == .quiz }!, topClearance: 100)
         .environmentObject(tracker)
         .environmentObject(FeedEngine(tracker: tracker))
 }
