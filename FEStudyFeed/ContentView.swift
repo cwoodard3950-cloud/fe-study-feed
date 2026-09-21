@@ -32,9 +32,15 @@ struct ContentView: View {
             }
             .scrollTargetBehavior(.paging)
             .scrollPosition(id: $scrollPosition)
-            .ignoresSafeArea()
-
-            topBar
+            // Reserves exactly the top bar's real height (safe area + its
+            // own size) as inset space for the scroll content below it, so
+            // each card's own header never has to guess a padding value to
+            // clear the bar -- it just lays out in whatever space remains.
+            // Each card's own background still bleeds full-screen because
+            // CardPageView's gradient calls .ignoresSafeArea() itself.
+            .safeAreaInset(edge: .top) {
+                topBar
+            }
         }
         .sheet(isPresented: $showingStats) {
             StatsView()

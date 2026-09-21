@@ -50,7 +50,7 @@ struct CardPageView: View {
                 swipeHint
             }
             .padding(.horizontal, 22)
-            .padding(.top, 64)
+            .padding(.top, 20)
             .padding(.bottom, 24)
         }
     }
