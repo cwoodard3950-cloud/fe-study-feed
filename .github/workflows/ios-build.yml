@@ -1,9 +1,14 @@
 name: iOS Build
 
 # Compiles the app on a real Xcode toolchain (GitHub's macOS runners) and
-# then actually boots it in the iOS Simulator, so you get a real rendered
-# screenshot back -- without owning a Mac or an iPhone. Code signing is
+# then actually boots it in the iOS Simulator, so you get real rendered
+# screenshots back -- without owning a Mac or an iPhone. Code signing is
 # off throughout; the Simulator needs none.
+#
+# The app is launched with FE_AUTO_ADVANCE=1, a debug-only hook (see
+# ContentView.swift) that auto-advances the feed every ~2.5s so this run
+# can capture a short series of screenshots across several cards instead
+# of just whatever card happens to load first.
 
 on:
   push:
@@ -62,26 +67,34 @@ jobs:
             > simulator-console.log 2>&1 &
           echo $! > log_pid.txt
 
-      - name: Install and launch the app
+      - name: Install and launch the app (auto-advance enabled)
         run: |
           APP_PATH=$(find build/Build/Products -maxdepth 2 -name "FEStudyFeed.app" | head -1)
           echo "App path: $APP_PATH"
           xcrun simctl install "${{ steps.pick_sim.outputs.device_id }}" "$APP_PATH"
-          xcrun simctl launch "${{ steps.pick_sim.outputs.device_id }}" com.carsonwoodard.festudyfeed
+          SIMCTL_CHILD_FE_AUTO_ADVANCE=1 xcrun simctl launch "${{ steps.pick_sim.outputs.device_id }}" com.carsonwoodard.festudyfeed
 
-      - name: Wait for the UI to render
-        run: sleep 5
-
-      - name: Screenshot the running app
+      - name: Capture a series of screenshots as the feed auto-advances
         run: |
-          xcrun simctl io "${{ steps.pick_sim.outputs.device_id }}" screenshot fe-study-feed-screenshot.png
+          mkdir -p screenshots
+          # First card: give the UI a moment to render.
+          sleep 5
+          xcrun simctl io "${{ steps.pick_sim.outputs.device_id }}" screenshot screenshots/fe-study-feed-01.png
 
-      - name: Confirm the app is still running (didn't crash on launch)
+          # The app advances to the next card roughly every 2.5s
+          # (FE_AUTO_ADVANCE=1, see ContentView.swift). Shoot 5 more,
+          # spaced out enough to land after each advance + its animation.
+          for i in 02 03 04 05 06; do
+            sleep 3
+            xcrun simctl io "${{ steps.pick_sim.outputs.device_id }}" screenshot "screenshots/fe-study-feed-$i.png"
+          done
+
+      - name: Confirm the app is still running (didn't crash)
         run: |
           if xcrun simctl spawn "${{ steps.pick_sim.outputs.device_id }}" launchctl list | grep -q com.carsonwoodard.festudyfeed; then
             echo "App is running."
           else
-            echo "::error::App is not running -- it likely crashed on launch. Check simulator-console.log."
+            echo "::error::App is not running -- it likely crashed. Check simulator-console.log."
             exit 1
           fi
 
@@ -89,12 +102,12 @@ jobs:
         if: always()
         run: kill "$(cat log_pid.txt)" 2>/dev/null || true
 
-      - name: Upload screenshot + console log
+      - name: Upload screenshots + console log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fe-study-feed-simulator-run
           path: |
-            fe-study-feed-screenshot.png
+            screenshots/*.png
             simulator-console.log
           if-no-files-found: warn

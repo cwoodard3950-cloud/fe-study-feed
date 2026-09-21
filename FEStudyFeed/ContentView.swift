@@ -27,6 +27,7 @@ struct ContentView: View {
     @State private var showingStats = false
     @State private var showingTopicPicker = false
     @State private var topClearance: CGFloat = 90
+    @State private var autoAdvanceTask: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -62,6 +63,7 @@ struct ContentView: View {
                 )
         }
         .onPreferenceChange(TopBarClearanceKey.self) { topClearance = $0 }
+        .task { startAutoAdvanceIfNeeded() }
         .sheet(isPresented: $showingStats) {
             StatsView()
                 .environmentObject(tracker)
@@ -113,6 +115,45 @@ struct ContentView: View {
         }
         .padding(.horizontal)
         .padding(.top, 8)
+    }
+
+    // MARK: - CI / debug auto-advance
+    //
+    // Lets the GitHub Actions verification run "swipe" through several
+    // cards on its own, so a screenshot series can be captured without a
+    // real touch. Only activates when the Simulator process is launched
+    // with the FE_AUTO_ADVANCE=1 environment variable (the CI workflow
+    // sets this via `SIMCTL_CHILD_FE_AUTO_ADVANCE=1 xcrun simctl launch`);
+    // an ordinary install/launch never sets it, so this never runs for a
+    // real user.
+
+    private func startAutoAdvanceIfNeeded() {
+        guard ProcessInfo.processInfo.environment["FE_AUTO_ADVANCE"] == "1" else { return }
+        guard autoAdvanceTask == nil else { return }
+        autoAdvanceTask = Task {
+            // Give the first card a moment to render before advancing.
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            while !Task.isCancelled {
+                await MainActor.run { advanceToNextCard() }
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+            }
+        }
+    }
+
+    private func advanceToNextCard() {
+        if let current = scrollPosition,
+           let idx = engine.queue.firstIndex(where: { $0.id == current }) {
+            let nextIndex = idx + 1
+            engine.ensureCards(currentIndex: nextIndex)
+            guard nextIndex < engine.queue.count else { return }
+            withAnimation {
+                scrollPosition = engine.queue[nextIndex].id
+            }
+        } else if let first = engine.queue.first {
+            withAnimation {
+                scrollPosition = first.id
+            }
+        }
     }
 }
 
