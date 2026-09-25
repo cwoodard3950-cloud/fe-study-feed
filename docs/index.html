@@ -60,6 +60,7 @@
   html,body{height:100%;}
   body{
     margin:0;
+    position:relative;
     background:var(--bg);
     color:var(--text);
     font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,sans-serif;
@@ -90,6 +91,7 @@
     border-bottom:1px solid var(--border);
   }
   #topbar-row{display:flex;align-items:center;gap:10px;padding:10px 16px 8px;}
+  #back-btn{width:36px;height:36px;padding:0;justify-content:center;border-radius:50%;font-size:16px;}
   #wordmark{display:flex;flex-direction:column;line-height:1.05;margin-right:auto;}
   #wordmark .name{font-size:16px;font-weight:800;letter-spacing:-0.01em;}
   #wordmark .tag{font-size:10px;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;}
@@ -165,6 +167,54 @@
 
   .swipe-hint{text-align:center;font-size:11.5px;color:var(--text-muted);padding-top:10px;letter-spacing:.02em;}
 
+  /* ---------- Home screen ---------- */
+  #home-view{
+    position:fixed;inset:0;overflow-y:auto;background:var(--bg);
+    padding:calc(env(safe-area-inset-top,0px) + 20px) 18px calc(env(safe-area-inset-bottom,0px) + 30px);
+  }
+  #home-view[hidden]{display:none;}
+  #home-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;}
+  #home-header h1{font-size:24px;}
+  .home-sub{font-size:12px;color:var(--text-muted);margin-top:4px;}
+  #home-streak{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;flex:0 0 auto;}
+  #home-streak .flame{color:var(--accent);}
+
+  #continue-card{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    padding:16px;margin-bottom:16px;border-radius:18px;border:none;cursor:pointer;
+    background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, var(--bg)));
+    color:var(--on-accent);
+  }
+  #continue-card[hidden]{display:none;}
+  .continue-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .continue-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.75;}
+  .continue-detail{font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .continue-arrow{margin-left:auto;font-size:18px;flex:0 0 auto;}
+
+  #home-progress-btn{
+    display:flex;align-items:center;width:100%;gap:8px;text-align:left;
+    padding:14px 16px;margin-bottom:24px;border-radius:16px;
+    border:1px solid var(--border);background:var(--surface);color:var(--text);
+    font-size:14.5px;font-weight:600;cursor:pointer;
+  }
+  #home-progress-btn .chev{margin-left:auto;color:var(--text-muted);}
+
+  .home-section-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+  #topic-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .topic-tile{
+    display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;
+    padding:14px;border-radius:16px;border:1px solid var(--border);background:var(--surface);
+    border-left:4px solid var(--topic-color, var(--accent));cursor:pointer;min-height:88px;
+  }
+  .topic-tile.all-topics{grid-column:1 / -1;flex-direction:row;align-items:center;min-height:auto;}
+  .topic-tile-name{font-size:13.5px;font-weight:700;line-height:1.25;}
+  .topic-tile-meta{font-size:11px;color:var(--text-muted);margin-top:auto;}
+  .topic-tile-acc{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+    padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--text-muted);
+  }
+  .topic-tile.all-topics .topic-tile-acc{margin-left:auto;}
+
   /* ---------- Stats overlay ---------- */
   #stats-view{
     position:fixed;inset:0;z-index:30;background:var(--bg);overflow-y:auto;
@@ -215,20 +265,49 @@
   <p>Loading FE Study Feed&hellip;</p>
 </div>
 
-<div id="topbar">
-  <div id="topbar-row">
-    <div id="wordmark">
-      <span class="name">FE Study Feed</span>
-      <span class="tag" id="filter-label">All Topics · 156 cards</span>
+<div id="home-view">
+  <div id="home-header">
+    <div>
+      <h1>FE Study Feed</h1>
+      <p class="home-sub">156 cards · NCEES FE Mechanical</p>
     </div>
-    <button class="pill-btn" id="streak-badge"><span class="flame">&#9670;</span><span id="streak-num">0</span></button>
-    <button class="pill-btn" id="stats-btn" aria-label="Open stats">&#9776;</button>
+    <button class="pill-btn" id="home-streak"><span class="flame">&#9670;</span><span id="home-streak-num">0</span></button>
   </div>
-  <div id="chip-row"></div>
-  <div id="position-track"><div id="position-fill"></div></div>
+
+  <button id="continue-card" hidden>
+    <div class="continue-text">
+      <span class="continue-label">Continue Studying</span>
+      <span class="continue-detail" id="continue-detail"></span>
+    </div>
+    <span class="continue-arrow">&rarr;</span>
+  </button>
+
+  <button id="home-progress-btn">
+    <span>View Progress</span>
+    <span class="chev">&rarr;</span>
+  </button>
+
+  <p class="home-section-label">Study by Topic</p>
+  <div id="topic-grid"></div>
 </div>
 
-<div id="feed"></div>
+<div id="study-view" hidden>
+  <div id="topbar">
+    <div id="topbar-row">
+      <button class="pill-btn" id="back-btn" aria-label="Back to home">&larr;</button>
+      <div id="wordmark">
+        <span class="name">FE Study Feed</span>
+        <span class="tag" id="filter-label">All Topics · 156 cards</span>
+      </div>
+      <button class="pill-btn" id="streak-badge"><span class="flame">&#9670;</span><span id="streak-num">0</span></button>
+      <button class="pill-btn" id="stats-btn" aria-label="Open stats">&#9776;</button>
+    </div>
+    <div id="chip-row"></div>
+    <div id="position-track"><div id="position-fill"></div></div>
+  </div>
+
+  <div id="feed"></div>
+</div>
 
 <div id="install-tip" hidden>
   <p><strong>Keep this on your Home Screen.</strong> Tap Share, then "Add to Home Screen" — it opens full-screen like an app and works offline.</p>
@@ -368,6 +447,20 @@
   function renderStreakBadge(){
     document.getElementById("streak-num").textContent = progress.streak.current || 0;
     document.getElementById("tile-streak").textContent = progress.streak.current || 0;
+    document.getElementById("home-streak-num").textContent = progress.streak.current || 0;
+  }
+
+  // ---------------- Last position (resume where you left off) ----------------
+  var LASTPOS_KEY = "festudyfeed-lastpos-v1";
+  function saveLastPosition(filter, cardId){
+    try { localStorage.setItem(LASTPOS_KEY, JSON.stringify({filter: filter, cardId: cardId})); } catch(e){}
+  }
+  function loadLastPosition(){
+    try {
+      var raw = localStorage.getItem(LASTPOS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch(e){}
+    return null;
   }
 
   // ---------------- Feed rendering ----------------
@@ -400,7 +493,7 @@
     });
   }
 
-  function setFilter(topicId){
+  function setFilter(topicId, resumeCardId){
     currentFilter = topicId;
     renderChips();
     var label = document.getElementById("filter-label");
@@ -412,7 +505,25 @@
     }
     currentOrder = buildOrder(topicId);
     renderFeed();
-    feedEl.scrollTop = 0;
+    var resumeIdx = resumeCardId ? currentOrder.indexOf(resumeCardId) : -1;
+    if (resumeIdx >= 0){
+      feedEl.scrollTop = resumeIdx * feedEl.clientHeight;
+    } else {
+      feedEl.scrollTop = 0;
+    }
+  }
+
+  function enterFeed(topicId, resumeCardId){
+    document.getElementById("home-view").hidden = true;
+    document.getElementById("study-view").hidden = false;
+    setTopbarHeight();
+    setFilter(topicId, resumeCardId);
+  }
+
+  function goHome(){
+    document.getElementById("study-view").hidden = true;
+    document.getElementById("home-view").hidden = false;
+    renderHome();
   }
 
   function buildChoiceCard(card, wrap){
@@ -594,11 +705,69 @@
           if (idx >= 0){
             var pct = currentOrder.length > 1 ? (idx / (currentOrder.length - 1)) * 100 : 100;
             document.getElementById("position-fill").style.width = pct + "%";
+            saveLastPosition(currentFilter, e.target.dataset.cardId);
           }
         }
       });
     }, { root: feedEl, threshold: [0.6] });
     Array.prototype.forEach.call(feedEl.children, function(el){ io.observe(el); });
+  }
+
+  // ---------------- Home screen ----------------
+  function buildTopicTile(topicId, name, count, statsForTopic, isAll){
+    var tile = document.createElement("button");
+    tile.className = "topic-tile" + (isAll ? " all-topics" : "");
+    tile.style.setProperty("--topic-color", isAll ? "var(--accent)" : topicColor(topicId));
+
+    var nameEl = document.createElement("span");
+    nameEl.className = "topic-tile-name";
+    nameEl.textContent = name;
+    tile.appendChild(nameEl);
+
+    var acc = statsForTopic && statsForTopic.quizSeen ? Math.round(100 * statsForTopic.quizCorrect / statsForTopic.quizSeen) : null;
+    var seen = statsForTopic ? statsForTopic.seen : 0;
+
+    if (!isAll){
+      var meta = document.createElement("span");
+      meta.className = "topic-tile-meta";
+      meta.textContent = count + " cards" + (seen ? " · " + seen + " seen" : "");
+      tile.appendChild(meta);
+    }
+
+    var accBadge = document.createElement("span");
+    accBadge.className = "topic-tile-acc";
+    accBadge.textContent = acc === null ? (isAll ? count + " cards" : "New") : acc + "%";
+    tile.appendChild(accBadge);
+
+    tile.addEventListener("click", function(){ enterFeed(topicId); });
+    return tile;
+  }
+
+  function renderHome(){
+    renderStreakBadge();
+    var last = loadLastPosition();
+    var continueBtn = document.getElementById("continue-card");
+    if (last && CARD_BY_ID[last.cardId]){
+      var card = CARD_BY_ID[last.cardId];
+      var topicName = last.filter ? TOPICS[TOPIC_IDX[last.filter]].name : "All Topics";
+      var preview = card.prompt.length > 54 ? card.prompt.slice(0, 54) + "…" : card.prompt;
+      document.getElementById("continue-detail").textContent = topicName + " — " + preview;
+      continueBtn.hidden = false;
+      continueBtn.onclick = function(){ enterFeed(last.filter, last.cardId); };
+    } else {
+      continueBtn.hidden = true;
+    }
+
+    var byTopic = computeTopicStats();
+    var grid = document.getElementById("topic-grid");
+    grid.innerHTML = "";
+    var totalSeen = 0;
+    Object.keys(byTopic).forEach(function(k){ totalSeen += byTopic[k].seen; });
+    grid.appendChild(buildTopicTile(null, "All Topics", CARDS.length, {seen: totalSeen}, true));
+    TOPICS.forEach(function(t){
+      var count = CARDS.filter(function(c){ return c.topic === t.id; }).length;
+      grid.appendChild(buildTopicTile(t.id, t.name, count, byTopic[t.id], false));
+    });
   }
 
   // ---------------- Stats view ----------------
@@ -645,7 +814,7 @@
       var row = document.createElement("div");
       row.className = "topic-row";
       row.addEventListener("click", function(){
-        setFilter(r.t.id);
+        enterFeed(r.t.id);
         document.getElementById("stats-view").hidden = true;
       });
       var dot = document.createElement("span");
@@ -687,8 +856,15 @@
     renderStats();
     document.getElementById("stats-view").hidden = false;
   });
+  document.getElementById("home-progress-btn").addEventListener("click", function(){
+    renderStats();
+    document.getElementById("stats-view").hidden = false;
+  });
   document.getElementById("close-stats").addEventListener("click", function(){
     document.getElementById("stats-view").hidden = true;
+  });
+  document.getElementById("back-btn").addEventListener("click", function(){
+    goHome();
   });
 
   document.getElementById("install-dismiss").addEventListener("click", function(){
@@ -711,8 +887,7 @@
     loadProgress();
     renderStreakBadge();
     renderChips();
-    setTopbarHeight();
-    setFilter(null);
+    renderHome();
     document.getElementById("loading").hidden = true;
   }
 
